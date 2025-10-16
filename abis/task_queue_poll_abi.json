@@ -1,0 +1,37 @@
+[
+  {
+    "type": "function",
+    "name": "pollActivity",
+    "inputs": [
+      {"name":"queueName","type":"string","internalType":"string"},
+      {"name":"partitionId","type":"uint16","internalType":"uint16"}
+    ],
+    "outputs": [
+      {
+        "name":"activity",
+        "type":"tuple",
+        "internalType":"struct ITaskQueue.Activity",
+        "components":[
+          {"name":"activityId","type":"bytes32","internalType":"bytes32"},
+          {"name":"workflowInstanceId","type":"bytes32","internalType":"bytes32"},
+          {"name":"activityType","type":"address","internalType":"address"},
+          {"name":"inputData","type":"bytes","internalType":"bytes"},
+          {"name":"initData","type":"bytes","internalType":"bytes"},
+          {"name":"resultData","type":"bytes","internalType":"bytes"},
+          {"name":"createdAt","type":"uint256","internalType":"uint256"},
+          {"name":"expiresAt","type":"uint256","internalType":"uint256"},
+          {"name":"requester","type":"address","internalType":"address"},
+          {"name":"assignedWorker","type":"address","internalType":"address"},
+          {"name":"assignedAt","type":"uint256","internalType":"uint256"},
+          {"name":"lastHeartbeat","type":"uint256","internalType":"uint256"},
+          {"name":"progress","type":"uint8","internalType":"uint8"},
+          {"name":"isAssigned","type":"bool","internalType":"bool"},
+          {"name":"isCompleted","type":"bool","internalType":"bool"},
+          {"name":"success","type":"bool","internalType":"bool"}
+        ]
+      },
+      {"name":"hasActivity","type":"bool","internalType":"bool"}
+    ],
+    "stateMutability": "view"
+  }
+]

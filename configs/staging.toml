@@ -1,0 +1,21 @@
+[ethereum]
+rpc_url = ""
+wallet_private_key = ""
+wallet_address = ""
+workflow_engine_address = ""
+task_queue_address = ""
+multicall3_address = ""
+subnet_control_plane_address = ""
+
+[subnet_api]
+grpc_endpoint = ""
+
+[scheduler]
+poll_interval = "1s"
+max_inflight = 8
+queue_name = "video/1.1.0/processing"
+
+[tx_policy]
+gas_bump_percent = 10
+
+

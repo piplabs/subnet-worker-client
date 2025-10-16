@@ -30,6 +30,7 @@ pub mod keys {
     pub fn inflight(activity_id: &str) -> String { format!("inflight:{}", activity_id) }
     pub fn tx(activity_id: &str) -> String { format!("tx:{}", activity_id) }
     pub fn done(activity_id: &str) -> String { format!("done:{}", activity_id) }
+    pub fn claim_job(activity_id: &str) -> String { format!("claim_job:{}", activity_id) }
     pub const NONCE_LAST: &str = "nonce:last";
 }
 
