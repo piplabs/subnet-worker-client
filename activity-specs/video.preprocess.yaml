@@ -1,0 +1,8 @@
+task_kind: video.preprocess
+task_version: "1.1.0"
+inputs:
+  - name: object_key
+    type: string
+outputs:
+  - name: preprocessed_video_key
+    type: string

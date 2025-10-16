@@ -3,6 +3,7 @@ members = [
   "crates/config",
   "crates/persistence",
   "crates/chain",
+  "crates/broadcaster",
   "crates/rpc",
   "crates/storage",
   "crates/scheduler",
@@ -45,5 +46,6 @@ subnet-wcp-rpc = { path = "crates/rpc" }
 subnet-wcp-storage = { path = "crates/storage" }
 subnet-wcp-scheduler = { path = "crates/scheduler" }
 subnet-wcp-event = { path = "crates/event" }
+subnet-wcp-broadcaster = { path = "crates/broadcaster" }
 
 

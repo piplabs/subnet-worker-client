@@ -3,7 +3,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 use subnet_wcp_config::WcpConfig;
 use subnet_wcp_persistence::KvStore;
 use subnet_wcp_scheduler::Scheduler;
-use std::time::Duration;
+use subnet_wcp_broadcaster::Broadcaster;
 use alloy::providers::ProviderBuilder;
 use alloy::primitives::Address;
 
@@ -14,24 +14,22 @@ async fn main() -> Result<()> {
 
     tracing::info!("Starting Subnet Worker Client Process (WCP)");
 
-    // Load config from env (WCP__*) and configs/{ENVIRONMENT}.toml
     let cfg = WcpConfig::from_env()?;
-
-    // Open local store
     let store = KvStore::open("./wcp.db")?;
-
-    // Build provider
     let provider = ProviderBuilder::new().on_http(cfg.ethereum.rpc_url.parse()?);
 
-    // TODO: on-start check registration via SubnetControlPlane.isWorkerActive(cfg.ethereum.wallet_address)
-
-    // Start poller that enqueues claim jobs
+    // Spawn poller
     let poll_interval = cfg.scheduler.poll_interval;
     let queue_name = cfg.scheduler.queue_name.clone();
     let task_queue_addr: Address = cfg.ethereum.task_queue_address.parse()?;
-    let scheduler = Scheduler::new(store, poll_interval, queue_name, provider, task_queue_addr);
+    let scheduler = Scheduler::new(store.clone(), poll_interval, queue_name, provider.clone(), task_queue_addr);
+    let poller = tokio::spawn(async move { let _ = scheduler.run().await; });
 
-    scheduler.run().await?;
+    // Spawn broadcaster (claim placeholder)
+    let bc = Broadcaster::new(store.clone(), provider.clone());
+    let broadcaster = tokio::spawn(async move { let _ = bc.run_claim_loop().await; });
+
+    let _ = tokio::join!(poller, broadcaster);
 
     Ok(())
 }

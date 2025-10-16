@@ -4,7 +4,9 @@ use serde::{Serialize, Deserialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{info, warn};
 use alloy::providers::Provider;
-use alloy::primitives::{Address, B256};
+use alloy::primitives::Address;
+use hex::ToHex;
+use subnet_wcp_chain as chain;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClaimJob {
@@ -30,7 +32,7 @@ impl<P: Provider + Clone + Send + Sync + 'static> Scheduler<P> {
         loop {
             if let Some(id) = poll_once(&self.provider, self.task_queue_addr, &self.queue_name).await? {
                 let job = ClaimJob {
-                    activity_id: format!("0x{:x}", id),
+                    activity_id: format!("0x{}", id.encode_hex::<String>()),
                     queue_name: self.queue_name.clone(),
                     created_at_ms: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(),
                 };
@@ -44,8 +46,8 @@ impl<P: Provider + Clone + Send + Sync + 'static> Scheduler<P> {
     }
 }
 
-async fn poll_once<P: Provider + Clone + Send + Sync + 'static>(provider: &P, task_queue_addr: Address, queue: &str) -> Result<Option<B256>> {
-    crate::chain::task_queue::poll_activity(provider, task_queue_addr, queue).await
+async fn poll_once<P: Provider + Clone + Send + Sync + 'static>(provider: &P, task_queue_addr: Address, queue: &str) -> Result<Option<[u8;32]>> {
+    chain::task_queue::poll_activity(provider, task_queue_addr, queue).await
 }
 
 

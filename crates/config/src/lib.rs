@@ -36,6 +36,7 @@ pub struct WcpConfig {
     pub subnet_api: SubnetApiConfig,
     pub scheduler: SchedulerConfig,
     pub tx_policy: TxPolicyConfig,
+    pub wep_endpoint_http: Option<String>,
 }
 
 impl WcpConfig {

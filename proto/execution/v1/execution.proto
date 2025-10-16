@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package execution.v1;
+
+message Version {
+  string min = 1;
+  string max = 2;
+}
+
+message Capabilities {
+  uint32 max_concurrency = 1;
+  repeated string tags = 2;
+}
+
+message CapacityUpdate {
+  uint32 available_slots = 1;
+}
+
+message InputDescriptor {
+  string name = 1;
+  string media_type = 2;
+  string ref = 3;          // presigned URL or object key
+  string inline_json = 4;  // for small configs (JSON string)
+  bytes inline_bytes = 5;  // for small binary payloads
+}
+
+message TaskAssignment {
+  string activity_id = 1;
+  string workflow_instance_id = 2;
+  string run_id = 3;
+  string task_kind = 4;         // e.g., "video.preprocess"
+  string task_version = 5;      // semver
+  repeated InputDescriptor inputs = 6;
+  string upload_prefix = 7;
+  int64 soft_deadline_unix = 8;
+  int32 heartbeat_interval_s = 9;
+}
+
+message Ack { string activity_id = 1; string run_id = 2; }
+
+message Progress {
+  string activity_id = 1;
+  string run_id = 2;
+  uint32 percent = 3;
+  string message = 4;
+  string checkpoint_ref = 5; // optional ref to checkpoint in storage
+}
+
+message Completion {
+  string activity_id = 1;
+  string run_id = 2;
+  string status = 3;        // SUCCESS|ERROR|SKIPPED
+  string result_ref = 4;    // prefer reference over inline
+  bytes result_inline = 5;  // small inline payloads
+  string error = 6;         // error message if any
+}
+
+message Cancel { string activity_id = 1; string reason = 2; }
+message Drain {}
+
+message Envelope {
+  oneof msg {
+    Version hello = 1;
+    Version hello_ack = 2;
+    Capabilities capabilities = 3;
+    CapacityUpdate capacity = 4;
+    TaskAssignment assign = 5;
+    Ack ack = 6;
+    Progress progress = 7;
+    Completion completion = 8;
+    Cancel cancel = 9;
+    Drain drain = 10;
+  }
+}
+
+service Execution {
+  rpc TaskStream(stream Envelope) returns (stream Envelope);
+}
+
+

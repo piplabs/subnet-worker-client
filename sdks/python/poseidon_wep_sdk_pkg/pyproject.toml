@@ -1,0 +1,15 @@
+[project]
+name = "poseidon-wep-sdk-pkg"
+version = "0.0.1"
+description = "Poseidon Subnet Worker Execution Process SDK"
+authors = [{ name = "Poseidon", email = "dev@poseidon" }]
+requires-python = ">=3.9"
+dependencies = [
+  "grpcio>=1.60.0",
+  "grpcio-tools>=1.60.0",
+  "pydantic>=2.0.0",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
