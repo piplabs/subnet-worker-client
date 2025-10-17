@@ -1,9 +1,10 @@
 use anyhow::Result;
 use tracing_subscriber::{fmt, EnvFilter};
 use subnet_wcp_config::WcpConfig;
+mod components;
 use subnet_wcp_persistence::KvStore;
-use subnet_wcp_scheduler::Scheduler;
-use subnet_wcp_broadcaster::{Broadcaster, BroadcasterConfig};
+use components::poller::Poller;
+use components::assigner::Assigner;
 use alloy::providers::ProviderBuilder;
 use alloy::primitives::Address;
 use subnet_wcp_chain::control_plane as scp;
@@ -32,18 +33,16 @@ async fn main() -> Result<()> {
     let poll_interval = cfg.scheduler.poll_interval;
     let queue_name = cfg.scheduler.queue_name.clone();
     let task_queue_addr: Address = cfg.ethereum.task_queue_address.parse()?;
-    let scheduler = Scheduler::new(store.clone(), poll_interval, queue_name, provider.clone(), task_queue_addr);
-    let poller = tokio::spawn(async move { let _ = scheduler.run().await; });
+    let poll = Poller::new(store.clone(), poll_interval, queue_name, provider.clone(), task_queue_addr);
+    let poller = tokio::spawn(async move { let _ = poll.run().await; });
 
-    // Spawn broadcaster (claim placeholder)
-    let bc_cfg = BroadcasterConfig {
-        wep_endpoint_http: cfg.wep_grpc_endpoint.clone().unwrap_or_else(|| "http://127.0.0.1:7070".to_string()),
-        max_inflight: cfg.scheduler.max_inflight,
-    };
-    let bc = Broadcaster::new_with_cfg(store.clone(), provider.clone(), bc_cfg);
-    let broadcaster = tokio::spawn(async move { let _ = bc.run_claim_loop().await; });
+    // Spawn WEP RPC Assigner (schedules to WEP based on capacity)
+    let wep_endpoint = cfg.wep_grpc_endpoint.clone().unwrap_or_else(|| "http://127.0.0.1:7070".to_string());
+    let max_inflight = cfg.scheduler.max_inflight;
+    let assigner = Assigner::new(store.clone(), wep_endpoint, max_inflight);
+    let assigner_task = tokio::spawn(async move { let _ = assigner.run().await; });
 
-    let _ = tokio::join!(poller, broadcaster);
+    let _ = tokio::join!(poller, assigner_task);
 
     Ok(())
 }

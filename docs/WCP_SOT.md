@@ -65,12 +65,12 @@ Rationale:
 - Idempotent reconstruction ties local state to on-chain truth; minimizes reliance on local DB persistence.
 - Complements the real-time poller so we don’t miss items due to temporary outages.
 
-### Actor Architecture (Single-Node, No Event Bus)
+### Component Architecture (Single-Node, No Event Bus)
 
-WCP is composed of a small set of Tokio tasks (actors). Each actor owns a clear responsibility and communicates via bounded mpsc channels with typed messages. There is no global fan-out event bus; point-to-point channels keep flow explicit and simple on a vertically scaled node.
+WCP is composed of a small set of Tokio tasks (components). Each component owns a clear responsibility and communicates via bounded mpsc channels with typed messages. There is no global fan-out event bus; point-to-point channels keep flow explicit and simple on a vertically scaled node.
 
-Actors (examples):
-- Scheduler/Poller → emits ClaimJob
+Components (examples):
+- Poller → emits ClaimJob
 - Broadcaster (nonce lane, EIP-1559, bumping) ← Commands; → TxSubmitted/TxReplaced
 - Confirmer → TxConfirmed/TxFailed; derives ActivityClaimed/Completed
 - Reconciler → periodic repair from chain; writes RocksDB
@@ -79,6 +79,28 @@ Design choices:
 - Bounded channels for backpressure; idempotent state transitions; explicit persistence (`claim_job:*`, `inflight:*`, `tx:*`, `done:*`).
 - `select!`-driven timers for heartbeats/bump intervals alongside channel reads.
 - Graceful shutdown: stop intake, drain N seconds, persist checkpoints.
+
+#### Scheduler vs Poller (clarification)
+
+- Poller (visibility):
+  - Enumerates available work via `pollActivity(...)` and/or events.
+  - Writes `claim_job:{activity_id}` to RocksDB idempotently (append-only).
+  - Does not consider capacity or policy.
+
+- (Later, optional) Scheduler (policy + load):
+  - Reads `claim_job:*`, current `inflight:*`, and WEP capacity/credits.
+  - Applies queue priorities/limits, selects next activities to run.
+  - Issues assignment commands to the WEP RPC Assigner and records `inflight:{activity_id}`.
+
+- WEP RPC Assigner (execution bridge):
+  - Maintains gRPC TaskStream(s) to the WEP and current capacity/credits.
+  - Dispatches TaskAssignments only when capacity is available.
+  - Receives Progress/Completion; forwards to Broadcaster/Confirmer and updates persistence (`done:*`, `inflight:*`).
+
+Data flow:
+- Poller → RocksDB (`claim_job:*`).
+- WEP RPC Assigner (currently) reads `claim_job:*`, respects capacity, dispatches to WEP, updates persistence.
+- (If Scheduler added later) Scheduler → WEP RPC Assigner (dispatch decisions).
 
 ### MVP Implementation Plan
 

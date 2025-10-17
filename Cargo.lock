@@ -4147,13 +4147,13 @@ dependencies = [
  "semver 1.0.27",
  "serde",
  "serde_json",
+ "serde_yaml",
  "subnet-wcp-broadcaster",
  "subnet-wcp-chain",
  "subnet-wcp-config",
  "subnet-wcp-event",
  "subnet-wcp-persistence",
  "subnet-wcp-rpc",
- "subnet-wcp-scheduler",
  "subnet-wcp-storage",
  "thiserror 1.0.69",
  "tokio",
@@ -4238,22 +4238,6 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "tonic-build",
- "tracing",
-]
-
-[[package]]
-name = "subnet-wcp-scheduler"
-version = "0.1.0"
-dependencies = [
- "alloy",
- "anyhow",
- "hex",
- "serde",
- "serde_json",
- "subnet-wcp-chain",
- "subnet-wcp-persistence",
- "thiserror 1.0.69",
- "tokio",
  "tracing",
 ]
 
