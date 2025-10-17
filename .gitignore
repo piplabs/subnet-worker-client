@@ -1,1 +1,8 @@
 target/
+.venv/
+wcp.db/
+.cursor/
+.env
+pyrightconfig.json
+.vscode/settings.json
+sdks/python/poseidon_wep_sdk_pkg/poseidon_wep_sdk_pkg.egg-info/

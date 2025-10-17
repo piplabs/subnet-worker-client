@@ -1,0 +1,117 @@
+name: Full Audio Processing Pipeline
+version: audio/1.0.0
+description: Complete audio processing with audio speech quality and validation.
+activities:
+  - id: audio_handle_speech_quality
+    name: "handle audio speech quality"
+    description: "Check the audio speech quality."
+    worker: processing
+    num_workers: 1
+    quorum: 1
+    skip_on_prev_success: false
+    require_gpu: true
+    input_params:
+      - name: raw_audio_file_object_key
+        type: string
+        description: "Download path to raw audio in cloud"
+      - name: script_file_object_key
+        type: string
+        description: "Download path to script file in cloud"
+      - name: voice_phrase_file_object_key
+        type: string
+        description: "Download path to voice phrase file in cloud"
+      - name: language
+        type: string
+        description: "Language of the raw audio and script"
+    output_params:
+      - name: is_audio_valid
+        type: bool
+        description: "True if audio is of valid format, produced from the correct speaker, and is eligible for scoring. False otherwise."
+      - name: score_file_object_key
+        type: string
+        description: "Download path to audio score file in cloud"
+
+  - id: audio_ip_registration
+    name: "ip registration"
+    description: "Register the processed audio file as IP on Story L1."
+    worker: ip_registration
+    num_workers: 1
+    quorum: 1
+    skip_on_prev_success: false
+    require_gpu: false
+    input_params:
+      - name: raw_audio_file_object_key
+        type: string
+        description: "Download path to raw audio file in cloud"
+    output_params:
+      - name: tx_hash
+        type: string
+        description: "Transaction hash of the IP registration on Story L1"
+
+  - id: audio_validate_first
+    name: "validate audio first round"
+    description: "Validate the speech scoring on the raw audio file"
+    worker: validation
+    num_workers: 3
+    quorum: 3
+    skip_on_prev_success: false
+    require_gpu: false
+    input_params:
+      - name: raw_audio_file_object_key
+        type: string
+        description: "Download path to raw audio file in cloud"
+      - name: transcript_file_object_key
+        type: string
+        description: "Download path to transcript file in cloud"
+      - name: voice_phrase_file_object_key
+        type: string
+        description: "Download path to voice phrase file in cloud"
+      - name: language
+        type: string
+        description: "Language of the raw audio and transcript"
+      - name: tx_hash
+        type: string
+        description: "Transaction hash of the IP registration on Story L1"
+    output_params:
+      - name: is_scoring_valid
+        type: bool
+        description: "True if the scoring of the raw audio file is valid and IP of audio file is registered. False otherwise."
+      - name: validation_file_path
+        type: string
+        description: "Download path to score validation json in cloud"
+
+  - id: audio_validate_second
+    name: "validate audio second round"
+    description: "Validate the scoring on raw audio file with more validators if the first round does not pass"
+    worker: validation
+    num_workers: 7
+    quorum: 5
+    skip_on_prev_success: true
+    require_gpu: false
+    input_params:
+      - name: raw_audio_file_object_key
+        type: string
+        description: "Download path to raw audio file in cloud"
+      - name: transcript_file_object_key
+        type: string
+        description: "Download path to transcript file in cloud"
+      - name: voice_phrase_file_object_key
+        type: string
+        description: "Download path to voice phrase file in cloud"
+      - name: language
+        type: string
+        description: "Language of the raw audio and transcript"
+      - name: tx_hash
+        type: string
+        description: "Transaction hash of the IP registration on Story L1"
+      - name: validation_file_paths
+        type: "[]string"
+        description: "Download path to all score validation json files from the first validation"
+    output_params:
+      - name: validation_file_path
+        type: string
+        description: "Download path to validation json in cloud"
+      - name: is_scoring_valid
+        type: bool
+        description: "True if the scoring of the raw audio file is valid and IP of audio file is registered. False otherwise."
+

@@ -1,0 +1,107 @@
+name: Full Video Processing Pipeline
+version: video/1.1.0
+description: Complete video processing with validation, preprocessing, and AI annotation
+activities:
+  - id: video_preprocess
+    name: "preprocess video"
+    description: "Preprocess a video before annotating."
+    worker: processing
+    num_workers: 1
+    quorum: 1
+    skip_on_prev_success: false
+    require_gpu: true
+    input_params:
+      - name: file_path
+        type: string
+        description: "Download path to raw video in cloud"
+    output_params:
+      - name: preprocess_output
+        type: (bool,bool,string,string,bool,bool,string,string)
+        description: "Output of the preprocessing: (valid,compliant,processed_path,original_path,preprocessing_applied,ffmpeg_available,audio_properties,message)"
+      - name: file_path
+        type: string
+        description: "Download path to preprocessed video in cloud"
+    artifact:
+      upload_to_storage: true
+  - id: video_annotate
+    name: "annotate video"
+    description: "Annotate video frames using GPT-4 Vision or other equivalent AI APIs"
+    worker: processing
+    num_workers: 1
+    quorum: 1
+    skip_on_prev_success: false
+    require_gpu: false
+    input_params:
+      - name: preprocess_output
+        type: (bool,bool,string,string,bool,bool,string,string)
+        description: "Output of the preprocessing: (valid,compliant,processed_path,original_path,preprocessing_applied,ffmpeg_available,audio_properties,message)"
+      - name: file_path
+        type: string
+        description: "Download path to preprocessed video in cloud"
+    output_params:
+      - name: preprocessed_file_path
+        type: string
+        description: "Download path to preprocessed video in cloud"
+      - name: annotation_file_path
+        type: string
+        description: "Download path to annotation json in cloud"
+    artifact:
+      upload_to_storage: true
+  - id: video_validate_first
+    name: "validate video first round"
+    description: "Validate the annotation output"
+    worker: validation
+    num_workers: 3
+    quorum: 3
+    skip_on_prev_success: false
+    require_gpu: false
+    input_params:
+      - name: preprocessed_file_path
+        type: string
+        description: "Download path to preprocessed video in cloud"
+      - name: annotation_file_path
+        type: string
+        description: "Download path to annotation json in cloud"
+    output_params:
+      - name: preprocessed_file_path
+        type: string
+        description: "Download path to preprocessed video in cloud"
+      - name: annotation_file_path
+        type: string
+        description: "Download path to annotation json in cloud"
+      - name: validation_file_path
+        type: string
+        description: "Download path to validation json in cloud"
+    artifact:
+      upload_to_storage: true
+  - id: video_validate_second
+    name: "validate video second round"
+    description: "Validate the annotation output with more validators if the first round does not pass"
+    worker: validation
+    num_workers: 7
+    quorum: 5
+    skip_on_prev_success: true
+    require_gpu: false
+    input_params:
+      - name: preprocessed_file_path
+        type: string
+        description: "Download path to preprocessed video in cloud"
+      - name: annotation_file_path
+        type: string
+        description: "Download path to annotation json in cloud"
+      - name: validation_file_path
+        type: string
+        description: "Download path to validation json in cloud"
+    output_params:
+      - name: preprocessed_file_path
+        type: string
+        description: "Download path to preprocessed video in cloud"
+      - name: annotation_file_path
+        type: string
+        description: "Download path to annotation json in cloud"
+      - name: validation_file_path
+        type: string
+        description: "Download path to validation json in cloud"
+    artifact:
+      upload_to_storage: true
+

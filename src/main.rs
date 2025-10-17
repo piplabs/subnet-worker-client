@@ -3,7 +3,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 use subnet_wcp_config::WcpConfig;
 use subnet_wcp_persistence::KvStore;
 use subnet_wcp_scheduler::Scheduler;
-use subnet_wcp_broadcaster::Broadcaster;
+use subnet_wcp_broadcaster::{Broadcaster, BroadcasterConfig};
 use alloy::providers::ProviderBuilder;
 use alloy::primitives::Address;
 
@@ -26,7 +26,11 @@ async fn main() -> Result<()> {
     let poller = tokio::spawn(async move { let _ = scheduler.run().await; });
 
     // Spawn broadcaster (claim placeholder)
-    let bc = Broadcaster::new(store.clone(), provider.clone());
+    let bc_cfg = BroadcasterConfig {
+        wep_endpoint_http: cfg.wep_endpoint_http.clone().unwrap_or_else(|| "http://127.0.0.1:7070".to_string()),
+        max_inflight: cfg.scheduler.max_inflight,
+    };
+    let bc = Broadcaster::new_with_cfg(store.clone(), provider.clone(), bc_cfg);
     let broadcaster = tokio::spawn(async move { let _ = bc.run_claim_loop().await; });
 
     let _ = tokio::join!(poller, broadcaster);
