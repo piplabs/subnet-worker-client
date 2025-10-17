@@ -1,0 +1,29 @@
+server:
+  host: 127.0.0.1          # required
+  port: 7070               # required
+  tls:
+    enabled: false         # optional (enable for prod)
+    cert_file: ""         # required if tls.enabled
+    key_file: ""          # required if tls.enabled
+    ca_cert_file: ""      # optional (mTLS)
+
+runtime:
+  max_concurrency: auto    # required (auto or integer)
+  tags: ["cpu"]           # optional
+  handler_timeout_s: 600   # optional
+  graceful_shutdown_s: 15  # optional
+
+specs:
+  strict_specs: true       # optional (fail if handler missing)
+  list:
+    - kind: "video.preprocess"
+      version: "1.1.0"
+      path: "shared/workflows/video_v1_1_0.yaml"
+
+logging:
+  level: info              # optional
+  json: false              # optional
+
+protocol:
+  proto_min: "1.0.0"      # optional
+  proto_max: "1.0.0"      # optional

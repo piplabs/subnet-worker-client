@@ -8,8 +8,10 @@
 
 ### Implement a handler (in your app repo)
 ```python
-from poseidon_wep_sdk_pkg.registry import task
+from poseidon_wep_sdk_pkg.registry import task, bind_spec_from_yaml
 from poseidon_wep_sdk_pkg.types import TaskAssignment, Completion
+
+bind_spec_from_yaml("video.preprocess", "1.1.0", "shared/workflows/video_v1_1_0.yaml")
 
 @task("video.preprocess", "1.1.0")
 def preprocess(assign: TaskAssignment) -> Completion:
@@ -24,5 +26,7 @@ def preprocess(assign: TaskAssignment) -> Completion:
 - From repo root: `ENVIRONMENT=local cargo run -p subnet-wcp`
 
 ### Notes
-- Proto: `proto/execution/v1/execution.proto` (SoT). SDK will generate stubs against this later.
+- Validation: If required inputs are missing or no handler is registered for a received activity, the SDK returns an ERROR Completion.
+- Spec binding: Use `bind_spec_from_yaml(kind, version, path)` to enable validation at runtime.
+- Proto: `proto/execution/v1/execution.proto` (SoT).
 - In production, publish the SDK to PyPI; partner apps depend on it and implement handlers in their own repos.

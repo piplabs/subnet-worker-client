@@ -24,11 +24,13 @@ This document is the high-level, repo-agnostic guide for implementing and operat
 
 ### Activity Specs
 - Stable, static specs define each activity’s inputs/outputs (e.g., YAML). WCP maps on-chain ABI → TaskAssignment according to the spec; WEP handlers accept typed inputs and return result references (R2 keys) or small inline payloads.
+- SDK binding & validation (MVP): WEP can bind a spec to a handler and validate incoming TaskAssignments. Missing required inputs or unimplemented handlers produce an ERROR Completion.
+- Local spec copies for dev: see `shared/workflows/video_v1_1_0.yaml` and `shared/workflows/audio_v1_0_0.yaml`.
 
 ### End-to-End Flow
 1) WCP polls/observes queues → claims activity on-chain.
 2) WCP assigns TaskAssignment to WEP (presigned URLs included); tracks `inflight`.
-3) WEP runs handler, streams Progress; WCP translates to heartbeats.
+3) WEP validates TaskAssignment against bound spec; runs handler, streams Progress; WCP translates to heartbeats.
 4) WEP sends Completion; WCP completes on-chain and (if finalized) resumes workflow; marks `done`.
 
 ### Failure and Recovery
@@ -47,6 +49,7 @@ This document is the high-level, repo-agnostic guide for implementing and operat
 - Logs include `activity_id` and `run_id` for traceability.
 - Metrics to track: claims, heartbeats, completes, gas bumps, expiries, reconciliation repairs.
 - Health/readiness endpoints on both WCP and WEP; runbooks for nonce conflicts, expiry, DB recovery.
+- WEP server logs: TaskStream opens, hello/capabilities receipt, assignment validation results, completion sends.
 
 ### Configuration and Version Gates
 - Config surfaces: RPC endpoints, contract addresses, queues, deadlines, bump %, API endpoints.
@@ -63,6 +66,11 @@ This document is the high-level, repo-agnostic guide for implementing and operat
 - WCP SoT (implementation details): `docs/WCP_SOT.md`.
 - WEP SDK (Python) quickstart: `docs/WEP_SDK.md`.
 - Execution proto (SoT): `proto/execution/v1/execution.proto`.
-- Activity specs: `activity-specs/`.
+- Activity specs: `activity-specs/` (shape examples) and `shared/workflows/` (full workflows).
+
+### Running Locally (MVP)
+- Start WEP (Python): `python python-wep-ex/main.py` (envs: `WEP_MAX_CONCURRENCY`, `WEP_HANDLER_DELAY_MS`).
+- Start WCP (Rust): `ENVIRONMENT=local cargo run -p subnet-wcp`.
+- WCP broadcaster seeds demo jobs and dispatches concurrently up to `scheduler.max_inflight`; `wep_endpoint_http` is read from config.
 
 

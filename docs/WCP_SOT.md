@@ -9,7 +9,7 @@
 - Persistence: RocksDB `wcp.db` with keys: `claim_job:{activity_id}`, `inflight:{id}`, `tx:{id}`, `done:{id}`, `nonce:last`.
 - Chain provider: alloy HTTP provider.
 - Poller: calls `TaskQueue.pollActivity(queue, 0)` and writes `claim_job` records.
-- (Future) Broadcaster: consumes `claim_job:*`, builds txs (claim), batches via Multicall3, submits, confirms.
+- Broadcaster (dev, mock): consumes `claim_job:*`, seeds demo jobs if empty, opens WEP gRPC TaskStream, sends Hello/Capabilities and TaskAssignment, awaits Completion, writes `done:{activity_id}`; concurrent dispatch bounded by `scheduler.max_inflight`; endpoint from `wep_endpoint_http`.
 
 ### Config
 - `[ethereum]`: `rpc_url`, `wallet_private_key`, `wallet_address`, `workflow_engine_address`, `task_queue_address`, `multicall3_address`, `subnet_control_plane_address`.
@@ -21,8 +21,8 @@
 1) Startup: load config, open RocksDB, construct alloy provider.
 2) (Soon) Registration check: `SubnetControlPlane.isWorkerActive(wallet)`; exit or proceed.
 3) Poll loop: `TaskQueue.pollActivity(queue, 0)`; if `hasActivity`, write `claim_job:{activity_id}` JSON.
-4) (Soon) Broadcaster loop: read claim_job, create claim tx, submit, confirm, mark inflight.
-5) (Later) Heartbeats, completion, resume, WEP RPC integration.
+4) Broadcaster loop (dev): read `claim_job:*`, send TaskAssignment over gRPC to WEP, await Completion, mark `done` and clean claim job. (Chain txs stubbed for now.)
+5) Later: real claims/heartbeats/complete/resume; event poller integration.
 
 ### Keys and Records
 - `claim_job:{activity_id}` => `{ activity_id, queue_name, created_at_ms }` (JSON)

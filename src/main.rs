@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
 
     // Spawn broadcaster (claim placeholder)
     let bc_cfg = BroadcasterConfig {
-        wep_endpoint_http: cfg.wep_endpoint_http.clone().unwrap_or_else(|| "http://127.0.0.1:7070".to_string()),
+        wep_endpoint_http: cfg.wep_grpc_endpoint.clone().unwrap_or_else(|| "http://127.0.0.1:7070".to_string()),
         max_inflight: cfg.scheduler.max_inflight,
     };
     let bc = Broadcaster::new_with_cfg(store.clone(), provider.clone(), bc_cfg);

@@ -18,7 +18,7 @@ queue_name = "video/1.1.0/processing"
 [tx_policy]
 gas_bump_percent = 10
 
-# local WEP endpoint (to be used when assignment path is implemented)
-wep_endpoint_http = "http://127.0.0.1:7070"
+# local WEP gRPC endpoint (HTTP/2; use https:// for TLS)
+wep_grpc_endpoint = "http://127.0.0.1:7070"
 
 

@@ -18,4 +18,6 @@ queue_name = "video/1.1.0/processing"
 [tx_policy]
 gas_bump_percent = 10
 
+# WEP gRPC endpoint (HTTP/2; use https:// for TLS)
+wep_grpc_endpoint = ""
 
