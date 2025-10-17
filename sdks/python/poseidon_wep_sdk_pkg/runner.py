@@ -1,7 +1,8 @@
 import asyncio
+from typing import Optional, List
 from .server import WepServer
 
-async def run_server(host: str = "127.0.0.1", port: int = 7070, max_concurrency: int = 4, tags: list[str] = None):
+async def run_server(host: str = "127.0.0.1", port: int = 7070, max_concurrency: int = 4, tags: Optional[List[str]] = None):
     server = WepServer(host=host, port=port, max_concurrency=max_concurrency, tags=tags)
     await server.start()
 
