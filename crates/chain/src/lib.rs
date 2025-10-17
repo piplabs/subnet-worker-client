@@ -44,10 +44,16 @@ pub mod control_plane {
     use alloy::primitives::Address;
     use alloy::providers::Provider;
     use anyhow::Result;
+    use tracing::info;
 
     pub async fn is_worker_active<P: Provider + Clone + Send + Sync + 'static>(_provider: &P, _scp_addr: Address, _worker: Address) -> Result<bool> {
         // Stubbed: assume active for MVP
         Ok(true)
+    }
+
+    pub async fn get_protocol_version<P: Provider + Clone + Send + Sync + 'static>(_provider: &P, _scp_addr: Address) -> Result<String> {
+        // Stubbed: return current version from contract for MVP
+        Ok("0.2.0".to_string())
     }
 }
 

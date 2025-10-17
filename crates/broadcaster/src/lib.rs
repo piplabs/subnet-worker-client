@@ -79,6 +79,12 @@ async fn handle_one_job(store: KvStore, key: String, wep_endpoint: String) -> Re
         Ok(_) => info!(%key, "sent hello"),
         Err(e) => warn!(%key, error=%e, "failed to send hello"),
     }
+    // Wait briefly for hello_ack prior to sending capabilities/assign (MVP best-effort)
+    if let Some(Ok(env)) = rx.next().await {
+        if let Some(execution_v1::envelope::Msg::HelloAck(v)) = env.msg {
+            info!(%key, min=%v.min, max=%v.max, "received hello_ack");
+        }
+    }
     match tx.send(Envelope { msg: Some(execution_v1::envelope::Msg::Capabilities(Capabilities{ max_concurrency: 4, tags: vec!["cpu".into()] })) }).await {
         Ok(_) => info!(%key, "sent capabilities"),
         Err(e) => warn!(%key, error=%e, "failed to send capabilities"),

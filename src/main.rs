@@ -6,6 +6,7 @@ use subnet_wcp_scheduler::Scheduler;
 use subnet_wcp_broadcaster::{Broadcaster, BroadcasterConfig};
 use alloy::providers::ProviderBuilder;
 use alloy::primitives::Address;
+use subnet_wcp_chain::control_plane as scp;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -17,6 +18,15 @@ async fn main() -> Result<()> {
     let cfg = WcpConfig::from_env()?;
     let store = KvStore::open("./wcp.db")?;
     let provider = ProviderBuilder::new().on_http(cfg.ethereum.rpc_url.parse()?);
+    // Contract protocol semver check
+    let scp_addr: Address = cfg.ethereum.subnet_control_plane_address.parse()?;
+    let ver = scp::get_protocol_version(&provider, scp_addr).await?;
+    let allowed_min = &cfg.protocol.contract_min;
+    let allowed_max = &cfg.protocol.contract_max;
+    if !semver_in_range(&ver, allowed_min, allowed_max) {
+        tracing::error!(onchain=%ver, min=%allowed_min, max=%allowed_max, "Contract protocol version out of supported range");
+        anyhow::bail!("contract protocol version incompatible");
+    }
 
     // Spawn poller
     let poll_interval = cfg.scheduler.poll_interval;
@@ -36,6 +46,13 @@ async fn main() -> Result<()> {
     let _ = tokio::join!(poller, broadcaster);
 
     Ok(())
+}
+fn semver_in_range(ver: &str, min: &str, max: &str) -> bool {
+    use semver::Version;
+    match (Version::parse(ver), Version::parse(min), Version::parse(max)) {
+        (Ok(v), Ok(lo), Ok(hi)) => v >= lo && v <= hi,
+        _ => false,
+    }
 }
 
 

@@ -21,3 +21,7 @@ gas_bump_percent = 10
 # WEP gRPC endpoint (HTTP/2; use https:// for TLS)
 wep_grpc_endpoint = ""
 
+[protocol]
+contract_min = "0.2.0"
+contract_max = "0.2.0"
+

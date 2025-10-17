@@ -1,7 +1,7 @@
 ## Worker Client Process (WCP) - Source of Truth
 
 ### Purpose
-- On-chain orchestration for workers: registration checks, polling queues, enqueuing claim jobs, heartbeats, completion, resume (future).
+- On-chain orchestration for workers on a single, vertically scaled node: registration checks, polling queues, enqueuing claim jobs, heartbeats, completion, resume (future).
 - Mediate storage access via subnet-api (presigned URLs) for WEP.
 
 ### Current MVP Scope
@@ -65,6 +65,21 @@ Rationale:
 - Idempotent reconstruction ties local state to on-chain truth; minimizes reliance on local DB persistence.
 - Complements the real-time poller so we don’t miss items due to temporary outages.
 
+### Actor Architecture (Single-Node, No Event Bus)
+
+WCP is composed of a small set of Tokio tasks (actors). Each actor owns a clear responsibility and communicates via bounded mpsc channels with typed messages. There is no global fan-out event bus; point-to-point channels keep flow explicit and simple on a vertically scaled node.
+
+Actors (examples):
+- Scheduler/Poller → emits ClaimJob
+- Broadcaster (nonce lane, EIP-1559, bumping) ← Commands; → TxSubmitted/TxReplaced
+- Confirmer → TxConfirmed/TxFailed; derives ActivityClaimed/Completed
+- Reconciler → periodic repair from chain; writes RocksDB
+
+Design choices:
+- Bounded channels for backpressure; idempotent state transitions; explicit persistence (`claim_job:*`, `inflight:*`, `tx:*`, `done:*`).
+- `select!`-driven timers for heartbeats/bump intervals alongside channel reads.
+- Graceful shutdown: stop intake, drain N seconds, persist checkpoints.
+
 ### MVP Implementation Plan
 
 1) Registration & Startup
@@ -114,10 +129,17 @@ Implementation Plan
 - Chain stubs: assume worker registered; skip real claim/complete. Treat `claim_job:*` as ready-to-assign for MVP.
 
 Status
-- gRPC client stubs generated (Rust): `crates/rpc`
-- Activity spec in place
-- SDK skeleton present (Python)
-- Next: implement Python grpc.aio server; implement WCP assigner loop using `WepGrpcClient::open_task_stream`
+- Rust gRPC client stubs in `crates/rpc`
+- WEP SDK server implemented (Python, grpc.aio) with spec binding/validation
+- Broadcaster in dev mode: seeds demo jobs, concurrent dispatch bounded by `scheduler.max_inflight`, configurable `wep_grpc_endpoint`
+- Local workflow specs copied under `shared/workflows/`
+
+TODO (next):
+- Implement real claim/heartbeat/complete/resume tx paths in broadcaster (EIP-1559 + bumping)
+- Confirmer actor to emit ActivityClaimed/Completed, drive follow-up actions
+- Registration check at startup: `SubnetControlPlane.isWorkerActive`
+- Event poller for ActivityEnqueued to complement polling
+- Structured shutdown across actors; metrics for queue depths/latencies
 
 Next Steps
 1) Build WEP server with TaskStream and a handler for `video.preprocess`

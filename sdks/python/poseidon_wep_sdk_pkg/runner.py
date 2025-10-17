@@ -14,7 +14,7 @@ async def run_server(host: str = "127.0.0.1", port: int = 7070, max_concurrency:
             # TODO: add optional strict handler check
             pass
         mc = resolve_max_concurrency(cfg.runtime.max_concurrency)
-        server = WepServer(host=cfg.server.host, port=cfg.server.port, max_concurrency=mc, tags=cfg.runtime.tags)
+        server = WepServer(host=cfg.server.host, port=cfg.server.port, max_concurrency=mc, tags=cfg.runtime.tags, proto_min=cfg.protocol.proto_min, proto_max=cfg.protocol.proto_max)
         await server.start()
     else:
         server = WepServer(host=host, port=port, max_concurrency=max_concurrency, tags=tags)

@@ -31,6 +31,12 @@ pub struct TxPolicyConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct ProtocolConfig {
+    pub contract_min: String,
+    pub contract_max: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct WcpConfig {
     pub ethereum: EthereumConfig,
     pub subnet_api: SubnetApiConfig,
@@ -38,6 +44,7 @@ pub struct WcpConfig {
     pub tx_policy: TxPolicyConfig,
     #[serde(alias = "wep_endpoint_http")]
     pub wep_grpc_endpoint: Option<String>,
+    pub protocol: ProtocolConfig,
 }
 
 impl WcpConfig {

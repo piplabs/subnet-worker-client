@@ -37,6 +37,7 @@ once_cell = "1.21"
 hex = "0.4"
 url = "2.5.4"
 thiserror = "1.0"
+semver = "1.0"
 
 # internal crates
 subnet-wcp-config = { path = "crates/config" }

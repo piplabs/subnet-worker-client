@@ -5,6 +5,7 @@ from typing import AsyncIterator, Optional, List, Any
 import grpc
 
 from .registry import get_handler, get_spec
+from .config import load_wep_config
 from .types import TaskAssignment as SdkTaskAssignment, InputDescriptor as SdkInput, Completion as SdkCompletion
 from .generated.execution.v1 import execution_pb2 as pb
 from .generated.execution.v1 import execution_pb2_grpc as pbg
@@ -35,6 +36,10 @@ def _sdk_to_pb_completion(c: SdkCompletion) -> PBCompletion:
 
 
 class ExecutionServiceServicer(pbg.ExecutionServicer):
+    def __init__(self, proto_min: str = "1.0.0", proto_max: str = "1.0.0"):
+        self.proto_min = proto_min
+        self.proto_max = proto_max
+
     async def TaskStream(self, request_iterator: AsyncIterator[PBEnvelope], context: grpc.aio.ServicerContext):  # type: ignore
         # Simple state: after receiving Assign, run handler and yield Completion
         print("WEP: TaskStream opened")
@@ -42,6 +47,10 @@ class ExecutionServiceServicer(pbg.ExecutionServicer):
             which = env.WhichOneof("msg")
             if which == "hello":
                 print("WEP: received hello")
+                # Reply with hello_ack selecting our supported range (simple echo for MVP)
+                out = pb.Envelope()  # type: ignore[attr-defined]
+                out.hello_ack.CopyFrom(pb.Version(min=self.proto_min, max=self.proto_max))  # type: ignore[attr-defined]
+                yield out
             elif which == "capabilities":
                 print(f"WEP: received capabilities max_concurrency={env.capabilities.max_concurrency} tags={list(env.capabilities.tags)}")
             elif which == "assign":
@@ -81,9 +90,9 @@ class ExecutionServiceServicer(pbg.ExecutionServicer):
                 yield out
 
 
-async def serve(host: str = "127.0.0.1", port: int = 7070, max_concurrency: int = 4):
+async def serve(host: str = "127.0.0.1", port: int = 7070, max_concurrency: int = 4, proto_min: str = "1.0.0", proto_max: str = "1.0.0"):
     server = grpc.aio.server(maximum_concurrent_rpcs=max_concurrency, options=[('grpc.so_reuseport', 0)])
-    pbg.add_ExecutionServicer_to_server(ExecutionServiceServicer(), server)
+    pbg.add_ExecutionServicer_to_server(ExecutionServiceServicer(proto_min=proto_min, proto_max=proto_max), server)
     server.add_insecure_port(f"{host}:{port}")
     await server.start()
     print(f"WEP: listening on {host}:{port}, max_concurrency={max_concurrency}")
@@ -91,11 +100,13 @@ async def serve(host: str = "127.0.0.1", port: int = 7070, max_concurrency: int 
 
 
 class WepServer:
-    def __init__(self, host: str = "127.0.0.1", port: int = 7070, max_concurrency: int = 4, tags: Optional[List[str]] = None):
+    def __init__(self, host: str = "127.0.0.1", port: int = 7070, max_concurrency: int = 4, tags: Optional[List[str]] = None, proto_min: str = "1.0.0", proto_max: str = "1.0.0"):
         self.host = host
         self.port = port
         self.max_concurrency = max_concurrency
         self.tags = tags or []
+        self.proto_min = proto_min
+        self.proto_max = proto_max
 
     async def start(self):
-        await serve(self.host, self.port, self.max_concurrency)
+        await serve(self.host, self.port, self.max_concurrency, self.proto_min, self.proto_max)
