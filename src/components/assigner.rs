@@ -53,9 +53,16 @@ impl Assigner {
         let _ = tx.send(Envelope { msg: Some(execution_v1::envelope::Msg::Capabilities(Capabilities{ max_concurrency: self.max_inflight as u32, tags: vec!["cpu".into()] })) }).await;
 
         // Assign task
+        let instance_id = "0xdeadbeef".to_string();
+        let activity_id = key.replacen("claim_job:", "", 1);
+        // mark inflight
+        let inflight_key = keys::inflight(&activity_id);
+        let inflight_val = format!("{{\"activity_id\":\"{}\",\"instance_id\":\"{}\"}}", activity_id, instance_id);
+        self.store.put(inflight_key.as_bytes(), inflight_val.as_bytes())?;
+
         let assignment = TaskAssignment{
-            activity_id: key.replacen("claim_job:", "", 1),
-            workflow_instance_id: "0xdeadbeef".into(),
+            activity_id: activity_id.clone(),
+            workflow_instance_id: instance_id.clone(),
             run_id: "run-1".into(),
             task_kind: spec.task_kind,
             task_version: spec.task_version,
@@ -69,8 +76,17 @@ impl Assigner {
         while let Some(Ok(env)) = rx.next().await {
             if let Some(execution_v1::envelope::Msg::Completion(c)) = env.msg {
                 info!(activity_id = %c.activity_id, status = %c.status, "assigner received completion");
+                if c.status == "SUCCESS" {
+                    // Enqueue on-chain follow-ups for broadcaster component
+                    let claim_key = keys::broadcast_complete(&c.activity_id);
+                    self.store.put(claim_key, b"1")?;
+                    let resume_key = keys::broadcast_resume(&instance_id);
+                    self.store.put(resume_key, b"1")?;
+                }
                 let done_key = keys::done(&c.activity_id);
                 self.store.put(done_key, b"ok")?;
+                // clear inflight
+                self.store.delete(keys::inflight(&c.activity_id).as_bytes())?;
                 self.store.delete(key.as_bytes())?;
                 break;
             }

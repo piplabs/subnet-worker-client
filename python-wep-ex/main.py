@@ -13,9 +13,12 @@ bind_spec_from_yaml("video.preprocess", "1.1.0", spec_path)
 
 @task("video.preprocess", "1.1.0")
 def preprocess(assign: TaskAssignment) -> Completion:
-    delay_ms = int(os.environ.get("WEP_HANDLER_DELAY_MS", "0"))
-    if delay_ms > 0:
-        time.sleep(delay_ms / 1000.0)
+    
+    #DO STUFF HERE
+    print(f"preprocessing {assign.activity_id}")
+
+    time.sleep(10)
+
     return Completion(activity_id=assign.activity_id, run_id=assign.run_id, status="SUCCESS", result_ref=f"{assign.upload_prefix}/preprocess/result.json")
 
 if __name__ == "__main__":

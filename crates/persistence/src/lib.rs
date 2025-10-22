@@ -49,6 +49,9 @@ pub mod keys {
     pub fn done(activity_id: &str) -> String { format!("done:{}", activity_id) }
     pub fn claim_job(activity_id: &str) -> String { format!("claim_job:{}", activity_id) }
     pub const NONCE_LAST: &str = "nonce:last";
+    pub fn broadcast_claim(activity_id: &str) -> String { format!("broadcast:claim:{}", activity_id) }
+    pub fn broadcast_complete(activity_id: &str) -> String { format!("broadcast:complete:{}", activity_id) }
+    pub fn broadcast_resume(instance_id: &str) -> String { format!("broadcast:resume:{}", instance_id) }
 }
 
 

@@ -6,6 +6,7 @@ use subnet_wcp_persistence::KvStore;
 use components::poller::Poller;
 use components::assigner::Assigner;
 use alloy::providers::ProviderBuilder;
+use components::broadcaster::Broadcaster as ChainBroadcaster;
 use alloy::primitives::Address;
 use subnet_wcp_chain::control_plane as scp;
 
@@ -18,7 +19,7 @@ async fn main() -> Result<()> {
 
     let cfg = WcpConfig::from_env()?;
     let store = KvStore::open("./wcp.db")?;
-    let provider = ProviderBuilder::new().on_http(cfg.ethereum.rpc_url.parse()?);
+    let provider = ProviderBuilder::new().connect_http(cfg.ethereum.rpc_url.parse()?);
     // Contract protocol semver check
     let scp_addr: Address = cfg.ethereum.subnet_control_plane_address.parse()?;
     let ver = scp::get_protocol_version(&provider, scp_addr).await?;
@@ -42,7 +43,13 @@ async fn main() -> Result<()> {
     let assigner = Assigner::new(store.clone(), wep_endpoint, max_inflight);
     let assigner_task = tokio::spawn(async move { let _ = assigner.run().await; });
 
-    let _ = tokio::join!(poller, assigner_task);
+    // Spawn Broadcaster (chain tx pipeline skeleton)
+    let task_queue_addr_bc: Address = cfg.ethereum.task_queue_address.parse()?;
+    let workflow_engine_addr_bc: Address = cfg.ethereum.workflow_engine_address.parse()?;
+    let chain_bc = ChainBroadcaster::new(store.clone(), provider.clone(), task_queue_addr_bc, workflow_engine_addr_bc);
+    let broadcaster_task = tokio::spawn(async move { let _ = chain_bc.run().await; });
+
+    let _ = tokio::join!(poller, assigner_task, broadcaster_task);
 
     Ok(())
 }

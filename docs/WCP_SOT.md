@@ -77,8 +77,15 @@ Components (examples):
 
 Design choices:
 - Bounded channels for backpressure; idempotent state transitions; explicit persistence (`claim_job:*`, `inflight:*`, `tx:*`, `done:*`).
+  - Inflight tracking: write `inflight:{activity_id}` on dispatch; delete and write `done:{activity_id}` on completion.
 - `select!`-driven timers for heartbeats/bump intervals alongside channel reads.
 - Graceful shutdown: stop intake, drain N seconds, persist checkpoints.
+
+Code layout (WCP):
+- `src/components/poller.rs` — Poller
+- `src/components/assigner.rs` — WEP RPC Assigner (gRPC TaskStream)
+- `src/components/broadcaster.rs` — Chain tx pipeline (skeleton)
+- `src/main.rs` — wires Poller + Assigner + Broadcaster
 
 #### Scheduler vs Poller (clarification)
 
@@ -95,12 +102,17 @@ Design choices:
 - WEP RPC Assigner (execution bridge):
   - Maintains gRPC TaskStream(s) to the WEP and current capacity/credits.
   - Dispatches TaskAssignments only when capacity is available.
-  - Receives Progress/Completion; forwards to Broadcaster/Confirmer and updates persistence (`done:*`, `inflight:*`).
+  - Receives Progress/Completion; enqueues on-chain follow-ups for the Broadcaster and updates persistence (`done:*`, `inflight:*`).
 
 Data flow:
 - Poller → RocksDB (`claim_job:*`).
-- WEP RPC Assigner (currently) reads `claim_job:*`, respects capacity, dispatches to WEP, updates persistence.
+- WEP RPC Assigner (currently) reads `claim_job:*`, respects capacity, dispatches to WEP, updates persistence and writes broadcaster jobs.
 - (If Scheduler added later) Scheduler → WEP RPC Assigner (dispatch decisions).
+
+Broadcaster job keys (LevelDB):
+- `broadcast:claim:{activity_id}`
+- `broadcast:complete:{activity_id}`
+- `broadcast:resume:{instance_id}`
 
 ### MVP Implementation Plan
 
@@ -151,10 +163,12 @@ Implementation Plan
 - Chain stubs: assume worker registered; skip real claim/complete. Treat `claim_job:*` as ready-to-assign for MVP.
 
 Status
-- Rust gRPC client stubs in `crates/rpc`
-- WEP SDK server implemented (Python, grpc.aio) with spec binding/validation
-- Broadcaster in dev mode: seeds demo jobs, concurrent dispatch bounded by `scheduler.max_inflight`, configurable `wep_grpc_endpoint`
-- Local workflow specs copied under `shared/workflows/`
+- Rust gRPC client stubs in `crates/rpc`.
+- WEP SDK server implemented (Python, grpc.aio) with spec binding/validation and config-driven startup.
+- WCP components wired: Poller (LevelDB `claim_job:*`), Assigner (gRPC dispatch, `inflight:*`/`done:*` tracking, writes broadcaster jobs), Broadcaster (skeleton draining `broadcast:*`).
+- WCP↔WEP proto handshake: Hello/HelloAck; WEP replies with configured proto range.
+- On-chain protocol gate: `SubnetControlPlane.getProtocolVersion()` checked against `[protocol]` min/max.
+- Local workflow specs copied under `shared/workflows/`.
 
 TODO (next):
 - Implement real claim/heartbeat/complete/resume tx paths in broadcaster (EIP-1559 + bumping)
@@ -162,6 +176,8 @@ TODO (next):
 - Registration check at startup: `SubnetControlPlane.isWorkerActive`
 - Event poller for ActivityEnqueued to complement polling
 - Structured shutdown across actors; metrics for queue depths/latencies
+- Remove per-job YAML read in Assigner; derive `task_kind`/`task_version` from config or job metadata
+- Capacity updates from WEP and policy in Assigner (beyond `max_inflight`)
 
 Next Steps
 1) Build WEP server with TaskStream and a handler for `video.preprocess`
