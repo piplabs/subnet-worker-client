@@ -30,6 +30,14 @@ async fn main() -> Result<()> {
         anyhow::bail!("contract protocol version incompatible");
     }
 
+    // Registration gate: ensure this worker is active
+    let worker_addr: Address = cfg.ethereum.wallet_address.parse()?;
+    let active = scp::is_worker_active(&provider, scp_addr, worker_addr).await?;
+    if !active {
+        tracing::error!(worker=%cfg.ethereum.wallet_address, "Worker is not active. Refusing to start.");
+        anyhow::bail!("worker not active on SubnetControlPlane");
+    }
+
     // Spawn poller
     let poll_interval = cfg.scheduler.poll_interval;
     let queue_name = cfg.scheduler.queue_name.clone();

@@ -36,6 +36,9 @@
 - SubnetControlPlane: `isWorkerActive(addr)`, capacity tracking, worker stats.
 - WorkflowEngine: `resumeWorkflow(instance)` (future).
 
+### Chain and Finality
+- The Subnet chain runs CometBFT consensus, providing instant finality (no re-orgs). This simplifies confirmer logic and reconciliation: once a transaction is included, it is finalized without probabilistic reorg risk.
+
 ### Reliability
 - If DB wiped, rehydrate via `getWorkerActivities(wallet)` + `getActivity(id)`; rebuild `inflight` and re-enqueue work (see global architecture doc for details).
 

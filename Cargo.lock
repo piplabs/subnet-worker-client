@@ -4187,6 +4187,10 @@ name = "subnet-wcp-chain"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "alloy-contract",
+ "alloy-network",
+ "alloy-rpc-types-eth",
+ "alloy-sol-types",
  "anyhow",
  "serde",
  "thiserror 1.0.69",

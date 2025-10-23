@@ -51,11 +51,26 @@ impl WcpConfig {
     pub fn from_env() -> anyhow::Result<Self> {
         let env = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "local".to_string());
         let file = format!("configs/{}.toml", env);
-        let mut c = config::Config::builder()
+        let c = config::Config::builder()
             .add_source(config::File::with_name(&file).required(false))
             .add_source(config::Environment::with_prefix("WCP").separator("__"))
             .build()?;
-        c.try_deserialize().map_err(Into::into)
+        let mut cfg: WcpConfig = c.try_deserialize()?;
+
+        // Default RPC to devnet if not provided
+        if cfg.ethereum.rpc_url.trim().is_empty() {
+            cfg.ethereum.rpc_url = "https://devnet-proteus.psdnrpc.io".to_string();
+        }
+
+        // Require wallet address and private key to be set
+        if cfg.ethereum.wallet_private_key.trim().is_empty() || cfg.ethereum.wallet_address.trim().is_empty() {
+            anyhow::bail!(
+                "Missing ethereum wallet configuration. Ensure both wallet_private_key and wallet_address are set via {} or environment variables WCP__ETHEREUM__WALLET_PRIVATE_KEY and WCP__ETHEREUM__WALLET_ADDRESS.",
+                file
+            );
+        }
+
+        Ok(cfg)
     }
 }
 
