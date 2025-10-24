@@ -1,5 +1,5 @@
 name: Full Video Processing Pipeline
-version: video/1.1.0
+version: video/1.0.0
 description: Complete video processing with validation, preprocessing, and AI annotation
 activities:
   - id: video_preprocess
@@ -104,5 +104,3 @@ activities:
         description: "Download path to validation json in cloud"
     artifact:
       upload_to_storage: true
-
-

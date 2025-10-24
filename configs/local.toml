@@ -18,8 +18,14 @@ queue_name = "video/1.1.0/processing"
 [tx_policy]
 gas_bump_percent = 10
 
-# local WEP gRPC endpoint (HTTP/2; use https:// for TLS)
+# local WEP endpoint
+# For REST API (new)
+wep_endpoint = "http://127.0.0.1:8080"
+# For gRPC (legacy)
 wep_grpc_endpoint = "http://127.0.0.1:7070"
+
+# Use REST API instead of gRPC
+use_rest_api = true
 
 [protocol]
 contract_min = "0.2.0"

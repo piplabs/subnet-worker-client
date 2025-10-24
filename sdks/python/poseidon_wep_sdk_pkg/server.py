@@ -45,6 +45,7 @@ class ExecutionServiceServicer(pbg.ExecutionServicer):
         print("WEP: TaskStream opened")
         async for env in request_iterator:
             which = env.WhichOneof("msg")
+            print(f"WEP: envelope received oneof={which}")
             if which == "hello":
                 print("WEP: received hello")
                 # Reply with hello_ack selecting our supported range (simple echo for MVP)
@@ -88,6 +89,8 @@ class ExecutionServiceServicer(pbg.ExecutionServicer):
                 out.completion.CopyFrom(comp)
                 print(f"WEP: sending completion activity_id={comp.activity_id} status={comp.status}")
                 yield out
+            else:
+                print("WEP: envelope had unknown or empty oneof; ignoring")
 
 
 async def serve(host: str = "127.0.0.1", port: int = 7070, max_concurrency: int = 4, proto_min: str = "1.0.0", proto_max: str = "1.0.0"):

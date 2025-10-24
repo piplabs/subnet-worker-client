@@ -17,8 +17,8 @@ specs:
   strict_specs: true       # optional (fail if handler missing)
   list:
     - kind: "video.preprocess"
-      version: "1.1.0"
-      path: "shared/workflows/video_v1_1_0.yaml"
+      version: "1.0.0"
+      path: "shared/workflows/video_v1_0_0.yaml"
 
 logging:
   level: info              # optional

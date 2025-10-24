@@ -42,9 +42,12 @@ pub struct WcpConfig {
     pub subnet_api: SubnetApiConfig,
     pub scheduler: SchedulerConfig,
     pub tx_policy: TxPolicyConfig,
+    pub wep_endpoint: Option<String>,           // REST API endpoint (default)
     #[serde(alias = "wep_endpoint_http")]
-    pub wep_grpc_endpoint: Option<String>,
+    pub wep_grpc_endpoint: Option<String>,      // gRPC endpoint (legacy)
     pub protocol: ProtocolConfig,
+    #[serde(default)]
+    pub dev_mode: Option<bool>,
 }
 
 impl WcpConfig {

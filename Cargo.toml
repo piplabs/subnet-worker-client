@@ -18,6 +18,7 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+
 [dependencies]
 anyhow = "1.0"
 tokio = { version = "1", features = ["full"] }
@@ -29,6 +30,11 @@ serde_yaml = "0.9"
 config = { version = "0.15", features = ["toml"] }
 humantime-serde = "1.1.1"
 alloy = { version = "1.0", features = ["full"] }
+alloy-sol-types = "1.0"
+alloy-contract = "1.0"
+alloy-signer-local = "1.0"
+alloy-rpc-types-eth = "1.0"
+alloy-network = "1.0"
 tonic = { version = "0.11", features = ["tls"] }
 tonic-health = "0.11"
 prost = "0.12"
@@ -39,6 +45,11 @@ hex = "0.4"
 url = "2.5.4"
 thiserror = "1.0"
 semver = "1.0"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+async-stream = "0.3"
+futures = "0.3"
+reqwest = { version = "0.12", features = ["json"] }
+base64 = "0.22"
 
 # internal crates
 subnet-wcp-config = { path = "crates/config" }

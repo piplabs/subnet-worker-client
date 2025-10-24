@@ -6,6 +6,7 @@ use subnet_wcp_persistence::KvStore;
 use components::poller::Poller;
 use components::assigner::Assigner;
 use alloy::providers::ProviderBuilder;
+use alloy_signer_local::PrivateKeySigner;
 use components::broadcaster::Broadcaster as ChainBroadcaster;
 use alloy::primitives::Address;
 use subnet_wcp_chain::control_plane as scp;
@@ -19,7 +20,9 @@ async fn main() -> Result<()> {
 
     let cfg = WcpConfig::from_env()?;
     let store = KvStore::open("./wcp.db")?;
-    let provider = ProviderBuilder::new().connect_http(cfg.ethereum.rpc_url.parse()?);
+    // Provider with wallet for tx signing
+    let signer: PrivateKeySigner = cfg.ethereum.wallet_private_key.parse()?;
+    let provider = ProviderBuilder::new().wallet(signer).connect_http(cfg.ethereum.rpc_url.parse()?);
     // Contract protocol semver check
     let scp_addr: Address = cfg.ethereum.subnet_control_plane_address.parse()?;
     let ver = scp::get_protocol_version(&provider, scp_addr).await?;
@@ -45,9 +48,14 @@ async fn main() -> Result<()> {
     let poll = Poller::new(store.clone(), poll_interval, queue_name, provider.clone(), task_queue_addr);
     let poller = tokio::spawn(async move { let _ = poll.run().await; });
 
-    // Spawn WEP RPC Assigner (schedules to WEP based on capacity)
-    let wep_endpoint = cfg.wep_grpc_endpoint.clone().unwrap_or_else(|| "http://127.0.0.1:7070".to_string());
+    // Spawn WEP Assigner (REST API by default)
+    let wep_endpoint = cfg.wep_endpoint.clone()
+        .or_else(|| std::env::var("WEP_ENDPOINT").ok())
+        .unwrap_or_else(|| "http://127.0.0.1:8080".to_string());
     let max_inflight = cfg.scheduler.max_inflight;
+    if cfg.dev_mode.unwrap_or(false) {
+        std::env::set_var("DEV_MOCK_ASSIGNER", "1");
+    }
     let assigner = Assigner::new(store.clone(), wep_endpoint, max_inflight);
     let assigner_task = tokio::spawn(async move { let _ = assigner.run().await; });
 

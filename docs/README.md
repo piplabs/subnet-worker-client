@@ -18,9 +18,14 @@ This document is the high-level, repo-agnostic guide for implementing and operat
 - WEP SDKs: provide handler registry, TaskStream server bootstrap, and progress/completion helpers.
 
 ### Protocol (WCP ⇄ WEP)
-- Transport: gRPC bidirectional stream (Execution.TaskStream).
-- Messages (envelope): Hello/Capabilities/CapacityUpdate, TaskAssignment, Progress, Completion, Cancel/Drain.
-- Versioning: semver handshake; unknown fields ignored for forward-compat.
+- Transport: REST API over HTTP (switched from gRPC bidirectional streaming for simplicity).
+- Endpoints:
+  - `POST /tasks/{id}/assign` - Assign task to WEP
+  - `GET /tasks/{id}/status` - Check task progress
+  - `POST /tasks/{id}/complete` - Webhook for task completion (optional)
+  - `GET /health` - Health check endpoint
+- Data format: JSON with same TaskAssignment/Completion structures from proto definitions.
+- Benefits: Simpler debugging, stateless design, Docker-friendly health checks, easier observability.
 
 ### Activity Specs
 - Stable, static specs define each activity’s inputs/outputs (e.g., YAML). WCP maps on-chain ABI → TaskAssignment according to the spec; WEP handlers accept typed inputs and return result references (R2 keys) or small inline payloads.

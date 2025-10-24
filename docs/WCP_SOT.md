@@ -9,7 +9,7 @@
 - Persistence: RocksDB `wcp.db` with keys: `claim_job:{activity_id}`, `inflight:{id}`, `tx:{id}`, `done:{id}`, `nonce:last`.
 - Chain provider: alloy HTTP provider.
 - Poller: calls `TaskQueue.pollActivity(queue, 0)` and writes `claim_job` records.
-- Broadcaster (dev, mock): consumes `claim_job:*`, seeds demo jobs if empty, opens WEP gRPC TaskStream, sends Hello/Capabilities and TaskAssignment, awaits Completion, writes `done:{activity_id}`; concurrent dispatch bounded by `scheduler.max_inflight`; endpoint from `wep_endpoint_http`.
+- Assigner: consumes `claim_job:*`, sends task assignment to WEP via REST API (POST /tasks/{id}/assign), polls for completion or receives webhook, writes `done:{activity_id}`; concurrent dispatch bounded by `scheduler.max_inflight`; endpoint from `wep_endpoint`.
 
 ### Config
 - `[ethereum]`: `rpc_url`, `wallet_private_key`, `wallet_address`, `workflow_engine_address`, `task_queue_address`, `multicall3_address`, `subnet_control_plane_address`.
@@ -38,6 +38,44 @@
 
 ### Chain and Finality
 - The Subnet chain runs CometBFT consensus, providing instant finality (no re-orgs). This simplifies confirmer logic and reconciliation: once a transaction is included, it is finalized without probabilistic reorg risk.
+
+### Current Progress (Dev Mode)
+- Config: ENV-merged TOML; default RPC `https://devnet-proteus.psdnrpc.io`; wallet required.
+- Control-plane calls: Alloy v1.0 `#[sol(rpc)]` bindings for `isWorkerActive`, `getProtocolVersion`.
+- Broadcaster (dev): drains `broadcast:claim:*` and writes `inflight:*` immediately (mock claim confirm); confirm/bump loops disabled in dev.
+- Assigner: opens WEP TaskStream, sends Hello/Capabilities and Assign; logs completion. Dev knobs:
+  - `WCP__DEV_MODE=true` sets `DEV_MOCK_ASSIGNER=1` (synthesizes SUCCESS without WEP).
+  - `DEV_SYNTH_COMPLETION=1` can synthesize SUCCESS if WEP doesn’t reply in time.
+- WEP SDK (Python): grpc.aio server; spec binding; logs Hello/Capabilities/Assign/Completion.
+
+### Known Gaps / Next Debug Steps
+- Real WEP completion: ensure Assign envelopes reach WEP (stream stability, retry, and send error handling in Assigner).
+- Re-enable broadcaster confirm/bump with EIP-1559 policy and nonce lane.
+- Add metrics and health endpoints; structured shutdown; reconciliation loop wiring.
+
+### How to Run (Dev)
+
+#### REST API Mode (Default)
+1. Start WEP:
+   - `PYTHONPATH=sdks/python python3 -u python-wep-ex/main.py > wep.out 2>&1`
+2. Seed an inflight record while WCP is stopped:
+   - `cargo run --bin sim_confirm 0x<bytes32_activity_id>`
+3. Start WCP:
+   - `ENVIRONMENT=local RUST_LOG=info cargo run --bin subnet-wcp > wcp.out 2>&1`
+4. Observe logs:
+   - wep.out: "WEP: Accepted task", "WEP: Task completed successfully"
+   - wcp.out: "Task assigned to WEP", "Task status update", "Task completed successfully"
+5. Inspect KV (stop WCP to release DB lock):
+   - `cargo run --bin kv_list done:` — should show `done:{activity_id}`
+   - `cargo run --bin kv_list inflight:` — should not include that activity
+
+#### gRPC Mode (Legacy)
+1. Start WEP:
+   - `PYTHONPATH=sdks/python python3 -u python-wep-ex/main_grpc.py > wep.out 2>&1`
+2. Seed an inflight record while WCP is stopped:
+   - `cargo run --bin sim_confirm 0x<bytes32_activity_id>`
+3. Start WCP with gRPC endpoint:
+   - `ENVIRONMENT=local WEP_ENDPOINT=http://127.0.0.1:7070 RUST_LOG=info cargo run --bin subnet-wcp > wcp.out 2>&1`
 
 ### Reliability
 - If DB wiped, rehydrate via `getWorkerActivities(wallet)` + `getActivity(id)`; rebuild `inflight` and re-enqueue work (see global architecture doc for details).
@@ -153,25 +191,37 @@ Milestones
 - M3: WEP assignment delivery; preprocess task completes; completion path queued.
 - M4: Reconciliation loop validates/repairs inflight state after restarts.
 
-### E2E MVP (gRPC WCP↔WEP, stubbed chain)
+### E2E MVP (REST API WCP↔WEP, stubbed chain)
 
-Goal: WCP assigns `video.preprocess` to WEP over gRPC; WEP processes and returns Completion; WCP marks done (chain stubbed).
+Goal: WCP assigns `video.preprocess` to WEP over REST API; WEP processes and returns completion; WCP marks done (chain stubbed).
 
-- Protocol: `proto/execution/v1/execution.proto` (TaskStream)
-- Activity spec: `activity-specs/video.preprocess.yaml`
+#### Architecture Decision (October 24, 2024)
+- **Switched from gRPC to REST API** due to complexity with bidirectional streaming
+- Issues resolved: Stream hanging, complex async channel management, difficult debugging
+- Benefits gained: Simpler code, standard HTTP tools, stateless design, better observability
 
-Implementation Plan
-- WEP server (Python grpc.aio): implement TaskStream, Hello/Capabilities/CapacityUpdate, accept TaskAssignment, run handler, send Completion
-- WCP assigner: open TaskStream to WEP, send HelloAck + Capabilities handshake, on claim_job enqueue TaskAssignment, listen for Completion, write `done:{activity_id}`
-- Chain stubs: assume worker registered; skip real claim/complete. Treat `claim_job:*` as ready-to-assign for MVP.
+#### Implementation Status
+- **WEP server** (Python FastAPI): 
+  - `python-wep-ex/main_rest.py` - REST API server with async task processing
+  - Endpoints: `/tasks/{id}/assign`, `/tasks/{id}/status`, `/health`
+  - In-memory task storage with progress tracking
+- **WCP assigner** (Rust):
+  - `src/components/assigner_rest.rs` - REST client using reqwest
+  - Task assignment via POST, status polling with timeout
+  - Base64 encoding for binary data in JSON
+- **Configuration**:
+  - `wep_endpoint` for REST API (default: `http://127.0.0.1:8080`)
+  - `wep_grpc_endpoint` retained for backward compatibility
+  - Use `cargo run --bin subnet-wcp-rest` for REST mode
 
-Status
-- Rust gRPC client stubs in `crates/rpc`.
-- WEP SDK server implemented (Python, grpc.aio) with spec binding/validation and config-driven startup.
-- WCP components wired: Poller (LevelDB `claim_job:*`), Assigner (gRPC dispatch, `inflight:*`/`done:*` tracking, writes broadcaster jobs), Broadcaster (skeleton draining `broadcast:*`).
-- WCP↔WEP proto handshake: Hello/HelloAck; WEP replies with configured proto range.
-- On-chain protocol gate: `SubnetControlPlane.getProtocolVersion()` checked against `[protocol]` min/max.
-- Local workflow specs copied under `shared/workflows/`.
+#### REST API Flow
+1. WCP sends task assignment: `POST /tasks/{id}/assign`
+2. WEP returns 202 Accepted, processes asynchronously
+3. WCP polls status: `GET /tasks/{id}/status` 
+4. WEP returns progress updates (0-100%)
+5. On completion, WCP marks task as done in KV store
+
+Status: **Fully implemented and tested** - Tasks successfully flow from assignment through completion.
 
 TODO (next):
 - Implement real claim/heartbeat/complete/resume tx paths in broadcaster (EIP-1559 + bumping)

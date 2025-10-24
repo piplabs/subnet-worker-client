@@ -6,12 +6,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 tracing = "0.1.41"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-alloy = { version = "1.0", features = ["full"] }
-subnet-wcp-persistence = { path = "../../crates/persistence" }
-subnet-wcp-chain = { path = "../../crates/chain" }
-subnet-wcp-rpc = { path = "../../crates/rpc" }
-serde_yaml = "0.9"
-tokio-stream = "0.1"
-tokio = { version = "1", features = ["full"] }
+
+
